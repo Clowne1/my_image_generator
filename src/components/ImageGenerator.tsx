@@ -16,7 +16,113 @@ const ImageGenerator: React.FC = () => {
   const actualWidth = 900;
   const actualHeight = 1200;
 
-  // ... (其余代码保持不变)
+  const fontOptions = ['HuiWenMingTi', 'Arial', 'Verdana', 'Times New Roman'];
+
+  useEffect(() => {
+    const font = new FontFace('HuiWenMingTi', 'url(/fonts/汇文明朝体.otf)');
+    font.load().then(() => {
+      document.fonts.add(font);
+      setFontLoaded(true);
+    }).catch((error) => {
+      console.error('Error loading font:', error);
+      setFontLoaded(true); // Set to true even on error to allow rendering
+    });
+  }, []);
+
+  const generateImage = useCallback(() => {
+    const previewCanvas = previewCanvasRef.current;
+    const hiddenCanvas = hiddenCanvasRef.current;
+    if (!previewCanvas || !hiddenCanvas) return;
+
+    const previewCtx = previewCanvas.getContext('2d');
+    const hiddenCtx = hiddenCanvas.getContext('2d');
+    if (!previewCtx || !hiddenCtx) return;
+
+    // Generate on hidden canvas
+    hiddenCtx.fillStyle = bgColor;
+    hiddenCtx.fillRect(0, 0, actualWidth, actualHeight);
+    drawMultilineText(hiddenCtx, text1, 3);
+    drawMultilineText(hiddenCtx, text2, 3);
+
+    // Draw scaled version on preview canvas
+    previewCtx.drawImage(hiddenCanvas, 0, 0, actualWidth, actualHeight, 0, 0, previewWidth, previewHeight);
+  }, [bgColor, text1, text2]);
+
+  useEffect(() => {
+    if (fontLoaded) {
+      generateImage();
+    }
+  }, [fontLoaded, generateImage]);
+
+  const drawMultilineText = (ctx: CanvasRenderingContext2D, textObj: TextState, scale: number) => {
+    ctx.fillStyle = textObj.color;
+    const fontSize = 20 * scale;
+    ctx.font = `bold ${fontSize}px "${textObj.font}", sans-serif`;
+    ctx.textAlign = textObj.align as CanvasTextAlign;
+
+    const maxWidth = actualWidth - 10 * scale; // 30px padding on each side
+    const lineHeight = fontSize * 1.2;
+
+    let lines = textObj.value.split('\n');
+    let y = textObj.y * scale;
+
+    lines.forEach((line) => {
+      let currentLine = '';
+      for (let i = 0; i < line.length; i++) {
+        let char = line[i];
+        let testLine = currentLine + char;
+        let metrics = ctx.measureText(testLine);
+        let testWidth = metrics.width;
+
+        if (testWidth > maxWidth && currentLine !== '') {
+          drawAlignedText(ctx, currentLine, textObj.x * scale, y, textObj.align, actualWidth);
+          currentLine = char;
+          y += lineHeight;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine !== '') {
+        drawAlignedText(ctx, currentLine, textObj.x * scale, y, textObj.align, actualWidth);
+        y += lineHeight;
+      }
+    });
+  };
+
+  const drawAlignedText = (
+    ctx: CanvasRenderingContext2D, 
+    text: string, 
+    x: number, 
+    y: number, 
+    align: string, 
+    canvasWidth: number
+  ) => {
+    switch(align) {
+      case 'center':
+        ctx.textAlign = 'center';
+        ctx.fillText(text, canvasWidth / 2, y);
+        break;
+      case 'right':
+        ctx.textAlign = 'right';
+        ctx.fillText(text, canvasWidth - 30, y);
+        break;
+      default:
+        ctx.textAlign = 'left';
+        ctx.fillText(text, 30, y);
+    }
+  };
+
+  const saveImage = () => {
+    const hiddenCanvas = hiddenCanvasRef.current;
+    if (!hiddenCanvas) return;
+
+    const dataUrl = hiddenCanvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = 'generated-image.png';
+    link.click();
+  };
+
 
   return (
     <div className="flex flex-col md:flex-row w-full gap-8">
