@@ -9,7 +9,7 @@ interface TextInputProps {
     y: number;
     align: string;
   };
-  setText: React.Dispatch<React.SetStateAction<typeof text>>;
+  setText: React.Dispatch<React.SetStateAction<typeof Text>>;
 }
 
 const TextInput: React.FC<TextInputProps> = ({ label, text, setText }) => {
