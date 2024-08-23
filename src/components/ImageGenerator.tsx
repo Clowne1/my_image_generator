@@ -1,12 +1,21 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import TextInput from './TextInput';
+
+type TextState = {
+  value: string;
+  color: string;
+  x: number;
+  y: number;
+  align: string;
+  font: string;
+};
 
 const ImageGenerator: React.FC = () => {
   const [bgColor, setBgColor] = useState('#0600eb');
-  const [text1, setText1] = useState({ value: '', color: '#02029e', x: 0, y: 30, align: 'left', font: 'HuiWenMingTi' });
-  const [text2, setText2] = useState({ value: '', color: '#d13474', x: 0, y: 25, align: 'left', font: 'HuiWenMingTi' });
+  const [text1, setText1] = useState<TextState>({ value: '', color: '#02029e', x: 0, y: 30, align: 'left', font: 'HuiWenMingTi' });
+  const [text2, setText2] = useState<TextState>({ value: '', color: '#d13474', x: 0, y: 25, align: 'left', font: 'HuiWenMingTi' });
   const [fontLoaded, setFontLoaded] = useState(false);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const hiddenCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -29,13 +38,7 @@ const ImageGenerator: React.FC = () => {
     });
   }, []);
 
-  useEffect(() => {
-    if (fontLoaded) {
-      generateImage();
-    }
-  }, [bgColor, text1, text2, fontLoaded]);
-
-  const generateImage = () => {
+  const generateImage = useCallback(() => {
     const previewCanvas = previewCanvasRef.current;
     const hiddenCanvas = hiddenCanvasRef.current;
     if (!previewCanvas || !hiddenCanvas) return;
@@ -52,42 +55,48 @@ const ImageGenerator: React.FC = () => {
 
     // Draw scaled version on preview canvas
     previewCtx.drawImage(hiddenCanvas, 0, 0, actualWidth, actualHeight, 0, 0, previewWidth, previewHeight);
-  };
+  }, [bgColor, text1, text2]);
 
-  const drawMultilineText = (ctx: CanvasRenderingContext2D, textObj: typeof text1, scale: number) => {
-  ctx.fillStyle = textObj.color;
-  const fontSize = 20 * scale;
-  ctx.font = `bold ${fontSize}px "${textObj.font}", sans-serif`;
-  ctx.textAlign = textObj.align as CanvasTextAlign;
+  useEffect(() => {
+    if (fontLoaded) {
+      generateImage();
+    }
+  }, [fontLoaded, generateImage]);
 
-  const maxWidth = actualWidth - 10 * scale; // 30px padding on each side
-  const lineHeight = fontSize * 1.2;
+  const drawMultilineText = (ctx: CanvasRenderingContext2D, textObj: TextState, scale: number) => {
+    ctx.fillStyle = textObj.color;
+    const fontSize = 20 * scale;
+    ctx.font = `bold ${fontSize}px "${textObj.font}", sans-serif`;
+    ctx.textAlign = textObj.align as CanvasTextAlign;
 
-  let lines = textObj.value.split('\n');
-  let y = textObj.y * scale;
+    const maxWidth = actualWidth - 10 * scale; // 30px padding on each side
+    const lineHeight = fontSize * 1.2;
 
-  lines.forEach((line) => {
-    let currentLine = '';
-    for (let i = 0; i < line.length; i++) {
-      let char = line[i];
-      let testLine = currentLine + char;
-      let metrics = ctx.measureText(testLine);
-      let testWidth = metrics.width;
+    let lines = textObj.value.split('\n');
+    let y = textObj.y * scale;
 
-      if (testWidth > maxWidth && currentLine !== '') {
-        drawAlignedText(ctx, currentLine, textObj.x * scale, y, textObj.align, actualWidth);
-        currentLine = char;
-        y += lineHeight;
-      } else {
-        currentLine = testLine;
+    lines.forEach((line) => {
+      let currentLine = '';
+      for (let i = 0; i < line.length; i++) {
+        let char = line[i];
+        let testLine = currentLine + char;
+        let metrics = ctx.measureText(testLine);
+        let testWidth = metrics.width;
+
+        if (testWidth > maxWidth && currentLine !== '') {
+          drawAlignedText(ctx, currentLine, textObj.x * scale, y, textObj.align, actualWidth);
+          currentLine = char;
+          y += lineHeight;
+        } else {
+          currentLine = testLine;
+        }
       }
-    }
-    if (currentLine !== '') {
-      drawAlignedText(ctx, currentLine, textObj.x * scale, y, textObj.align, actualWidth);
-      y += lineHeight;
-    }
-  });
-};
+      if (currentLine !== '') {
+        drawAlignedText(ctx, currentLine, textObj.x * scale, y, textObj.align, actualWidth);
+        y += lineHeight;
+      }
+    });
+  };
 
   const drawAlignedText = (
     ctx: CanvasRenderingContext2D, 
